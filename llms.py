@@ -204,3 +204,28 @@ class LLMWrapper:
         else:
             # should never reach here
             raise ValueError(f"Unknown LLM provider type {self.llm_provider_type}")
+        
+class CreativeWriter:
+    def __init__(self, meta_prompt, llm):
+        self.meta_prompt = meta_prompt
+        self.llm = llm
+
+    def creative_loop(self, context):
+        # for now lets just use the original prompt
+        prompt = f"""{self.meta_prompt}\n\n{context}"""
+        current_idea = self.llm.generate_plain_text(prompt)
+        return current_idea
+
+class JSONWriter:
+    def __init__(self, json_instructions, schema,llm):
+        self.json_instructions = json_instructions
+        self.llm = llm
+        self.schema = schema
+
+    def convertToJSON(self, text_to_extract_from):
+        # for now lets just use the original prompt
+        prompt = f"""{self.json_instructions}\n\n{text_to_extract_from}"""
+        current_idea = self.llm.generate_structured(prompt,self.schema)
+        return current_idea
+        
+
