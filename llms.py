@@ -2,8 +2,31 @@ import json
 import google.generativeai as genai
 from anthropic import Anthropic
 from openai import OpenAI
-from pydantic import BaseModel
-from typing_extensions import TypedDict
+
+def schema_to_json(model):
+    dummy_dict = {}
+    for field_name, field_type in model.__annotations__.items():
+        if hasattr(field_type, '__fields__'):
+            dummy_dict[field_name] = schema_to_json(field_type)
+        elif hasattr(field_type, "__origin__") and field_type.__origin__ == list:
+            inner_type = field_type.__args__[0]
+            if hasattr(inner_type, '__fields__'):
+                dummy_dict[field_name] = [schema_to_json(inner_type)]
+            else:
+                dummy_dict[field_name] = []
+        elif field_type == str:
+            dummy_dict[field_name] = ""
+        elif field_type == int:
+            dummy_dict[field_name] = 0
+        elif field_type == float:
+            dummy_dict[field_name] = 0.0
+        elif field_type == bool:
+            dummy_dict[field_name] = False
+        elif field_type == dict:
+            dummy_dict[field_name] = {}
+        else:
+            dummy_dict[field_name] = None
+    return dummy_dict
 
 class LLMWrapper:
     def __init__(self, llm_provider_type, **llm_provider_kwargs):
@@ -123,17 +146,10 @@ class LLMWrapper:
 
     def generate_structured(self, prompt,schema):
         if self.llm_provider_type == 'gemini':
-            # converting a pydantic model to a typed dict
-            Model = TypedDict(
-                schema.__name__ + "TypedDict",
-                {name: field.annotation for name, field in schema.model_fields.items()}
-            )
-            # generate the content
-            return self.gemini.generate_content(prompt,generation_config=genai.GenerationConfig(
-                response_mime_type="application/json", response_schema=list[Model]
+            return json.loads(self.gemini.generate_content(prompt,generation_config=genai.GenerationConfig(
+                response_mime_type="application/json", response_schema=schema
                 )
-            )
-
+            ).text)
         elif self.llm_provider_type == 'openai':
             completion = self.openai_client.chat.completions.create(
                 model=self.openai_model_name,
@@ -152,7 +168,7 @@ class LLMWrapper:
             return completion.choices[0].message.content
         elif self.llm_provider_type == 'anthropic':
             # we have to do some work here
-            prompt = prompt + f"""\n\nFollow the following JSON schema to format your response:\n{schema.model_json_schema()}\n"""
+            prompt = prompt + f"""\n\nFollow the following JSON schema to format your response:\n{schema_to_json(schema)}\n"""
             message = self.anthropic_client.messages.create(
                 model=self.anthropic_model_name,
                 system=self.anthropic_system_instruction,
@@ -176,11 +192,10 @@ class LLMWrapper:
             )
             unformatted = message.content[0].text
             output_json = json.loads("{" + unformatted[:unformatted.rfind("}") + 1])
-            return output_json
-        
+            return output_json       
         elif self.llm_provider_type == 'local':
             # same approach as anthropic
-            prompt = prompt + f"""\n\nFollow the following JSON schema to format your response:\n{schema.model_json_schema()}\n"""
+            prompt = prompt + f"""\n\nFollow the following JSON schema to format your response:\n{schema_to_json(schema)}\n"""
             completion = self.local_client.chat.completions.create(
                 model=self.local_model_name,
                 messages=[
@@ -206,20 +221,19 @@ class LLMWrapper:
             raise ValueError(f"Unknown LLM provider type {self.llm_provider_type}")
         
 class CreativeWriter:
-    def __init__(self, meta_prompt, llm):
+    def __init__(self, meta_prompt, llm_provider_type, **llm_provider_kwargs):
         self.meta_prompt = meta_prompt
-        self.llm = llm
+        self.llm = LLMWrapper(llm_provider_type, **llm_provider_kwargs, system_instruction=meta_prompt)
 
     def creative_loop(self, context):
         # for now lets just use the original prompt
-        prompt = f"""{self.meta_prompt}\n\n{context}"""
-        current_idea = self.llm.generate_plain_text(prompt)
+        current_idea = self.llm.generate_plain_text(context)
         return current_idea
 
 class JSONWriter:
-    def __init__(self, json_instructions, schema,llm):
+    def __init__(self, json_instructions, schema,llm_provider_type, **llm_provider_kwargs):
         self.json_instructions = json_instructions
-        self.llm = llm
+        self.llm = LLMWrapper(llm_provider_type, **llm_provider_kwargs, system_instruction=json_instructions)
         self.schema = schema
 
     def convertToJSON(self, text_to_extract_from):
