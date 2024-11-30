@@ -15,7 +15,8 @@ search_creative_system_prompt = """Your task is to simulate the google search al
 - In the first section, you will need to reply with the summary of the query and try to understand the different parts of the query.
 - In the second section, based on your understanding, you will list out what types of information users might be seeking when they search for that particular query.
 - in the third section, write down whether some other person on your version of the internet (you are the oracle here my friend) might have this same issue, such that thye might have created a webpage for exactly this issue. You need to understand the world never revolves around a person. So detail down if even such a perfect search result could exist. And also write down what else could the search engine include in the search results if so. I have included 5 such examples of extremely impossible and absurd queries, and what the search engine actually responded to them. Take inspirations from that section to better your responses and especially this section.
-- In the fourth and final section, you will create {max_results} search that cover a variety of the above asects of the query.
+- Now, before the final section you need to acknowledge that you will be writing your responses in xml format. So you need to include your final responses in an xml tag like <search_results>...</search_results> so that it is easy to identify.
+- In the fourth and final section, you will create {max_results} search results that cover a variety of the above asects of the query.
 
 Ok I am including some search results from google with analysis of the results so that you better understand the task.
 <example>
@@ -373,10 +374,12 @@ Some things to keep in mind:
 - The third section is the most important and you should really keep it mind while generating the final results. If the conclusion is that existence of such a page is improbable, please take the suggestions given by the 3rd section on what to include in the search results. At this point you can ignore the original search query.
 - Each result that you list out should have a title, a URL, and a description.
 - If your search results contain a result from an actual well-known company, lets say for e.g. reddit, stackoverflow, twitter, etc. then you should use parody names instead of the actual names.
+- The description has the name description just for the sake of clarity. You are expected to include a snippet from the supposed webpage that the search engine would return. To get a better idea of what to include in the description, you can look at the search results from the examples given above.
+- Now, before the final section you need to acknowledge that you will be writing your responses in xml format. So you need to include your final responses in an xml tag like <search_results>...</search_results> so that it is easy to identify.
 - Include your final (4th section) section inside an xml tag like <search_results>...</search_results> so that it is easy to identify.
 
 """
-search_json_system_prompt = """Convert the following text to JSON using the provided schema"""
+search_json_system_prompt = """You are a data processor. Your task is to to extract useful JSON from the given plain text by **strictly** following the given JSON Schema given below:"""
 
 # web page related prompts
 class WebPagePrompts:

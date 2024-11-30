@@ -18,7 +18,7 @@ class SearchEngine:
             raise ValueError(f"Error with extracting the xml tag from the results. Results:\n{results_plain_text}")
 
         
-        return self.json_writer.convertToJSON(results_plain_text)
+        return self.json_writer.convertToJSON(f"# Query: {query}\n# max_results: {max_results}\n\n{results_plain_text}")
     
 class WebPage:
     def __init__(self, llm_provider_type, **llm_provider_kwargs):

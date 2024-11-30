@@ -26,6 +26,7 @@ def schema_to_json(model):
             dummy_dict[field_name] = {}
         else:
             dummy_dict[field_name] = None
+    print(dummy_dict)
     return dummy_dict
 
 class LLMWrapper:
@@ -83,7 +84,7 @@ class LLMWrapper:
         elif llm_provider_type == 'local':
             self.local_client = OpenAI(
                 base_url=llm_provider_kwargs['base_url'],
-                api_key="meow"
+                api_key=llm_provider_kwargs['api_key'] if 'api_key' in llm_provider_kwargs else "meow"
             )
             self.local_system_instruction = llm_provider_kwargs['system_instruction']
             self.local_model_name = llm_provider_kwargs['model_name']
@@ -146,8 +147,8 @@ class LLMWrapper:
 
     def generate_structured(self, prompt,schema):
         if self.llm_provider_type == 'gemini':
-            return json.loads(self.gemini.generate_content(prompt,generation_config=genai.GenerationConfig(
-                response_mime_type="application/json", response_schema=schema
+            return json.loads(self.gemini.generate_content(prompt + f"""\n\nJSON Schema to format your Response in:\n{schema_to_json(schema)}\n""",generation_config=genai.GenerationConfig(
+                response_mime_type="application/json"
                 )
             ).text)
         elif self.llm_provider_type == 'openai':
@@ -168,7 +169,7 @@ class LLMWrapper:
             return completion.choices[0].message.content
         elif self.llm_provider_type == 'anthropic':
             # we have to do some work here
-            prompt = prompt + f"""\n\nFollow the following JSON schema to format your response:\n{schema_to_json(schema)}\n"""
+            prompt = prompt + f"""\n\nJSON Schema to format your Response in:\n{schema_to_json(schema)}\n"""
             message = self.anthropic_client.messages.create(
                 model=self.anthropic_model_name,
                 system=self.anthropic_system_instruction,
@@ -195,7 +196,7 @@ class LLMWrapper:
             return output_json       
         elif self.llm_provider_type == 'local':
             # same approach as anthropic
-            prompt = prompt + f"""\n\nFollow the following JSON schema to format your response:\n{schema_to_json(schema)}\n"""
+            prompt = prompt + f"""\n\nJSON Schema to format your Response in\n{schema_to_json(schema)}\n"""
             completion = self.local_client.chat.completions.create(
                 model=self.local_model_name,
                 messages=[
@@ -238,7 +239,7 @@ class JSONWriter:
 
     def convertToJSON(self, text_to_extract_from):
         # for now lets just use the original prompt
-        prompt = f"""{self.json_instructions}\n\n{text_to_extract_from}"""
+        prompt = f"""Text to extract from: {text_to_extract_from}"""
         current_idea = self.llm.generate_structured(prompt,self.schema)
         return current_idea
         
