@@ -3,3 +3,4 @@ openai
 anthropic
 pydantic
 typing-extensions
+python-fasthtml

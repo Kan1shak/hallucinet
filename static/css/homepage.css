@@ -1,0 +1,118 @@
+.content-view {
+    background-color: #3b3752;
+    padding: 10px 0;
+}
+
+nav {
+    margin: 10px;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px;
+    border: 3px solid #757dae;
+    border-left-width: 8px;
+    border-right-width: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.navbar li {
+    list-style: none;
+    display: inline;
+    padding: 5px;
+    border: 1px solid #3b3752;
+    border-bottom-width: 5px;
+}
+
+.navbar li:hover {
+    border-color: #757dae;
+}
+
+.navbar a {
+    color: #757dae;
+    text-decoration: none;
+}
+
+.home-page {
+    display: grid;
+    grid-template-rows: 1fr 2fr 1fr;
+    height: 80%;
+    justify-items: stretch;
+    align-items: center;
+    align-content: space-between;
+}
+
+
+.title {
+    color: #7e89be;
+    font-size: 5em;
+    text-align: center;
+    font-family: "BhuTuka Expanded One", serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.subtitle {
+    color: #7e89be;
+    font-size: 1em;
+    text-align: center;
+    font-family: "BhuTuka Expanded One", serif;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.search-bar-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px;
+}
+
+.search-bar {
+    padding: 10px;
+    border: 1px solid #757dae;
+    background-color: #3b3752;
+    color: #a69ae9;
+    width: 50%;
+    font-family: "JetBrains Mono", monospace;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.search-bar:focus {
+    outline: none;
+}
+
+.search-bar::placeholder {
+    color: #757dae;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px;
+}
+
+.social-links a {
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid #757dae;
+    color: #757dae;
+    text-decoration: none;
+    font-family: "JetBrains Mono", monospace;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+
+.social-links a:hover {
+    background-color: #757dae;
+    color: #3b3752;
+}
