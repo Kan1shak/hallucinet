@@ -12,13 +12,15 @@ class SearchEngine:
         results_plain_text =  self.creative_writer.creative_loop(query_with_max_results)
         print(results_plain_text)
         match = re.search(r"<search_results>(.*?)</search_results>", results_plain_text, re.DOTALL)
-        if match:
-            results_plain_text = match.group(1).strip()
+        user_metadata = re.search(r"<user_metadata>(.*?)</user_metadata>", results_plain_text, re.DOTALL)
+        if match and user_metadata:
+            results_plain_text = match.group(1).strip() + "\n" + user_metadata.group(1).strip()
+        elif match:
+            raise ValueError(f"Error with extracting the metadata. Results:\n{results_plain_text}")
         else:
-            raise ValueError(f"Error with extracting the xml tag from the results. Results:\n{results_plain_text}")
+            raise ValueError(f"Error with extracting the search results. Results:\n{results_plain_text}")
 
-        
-        return self.json_writer.convertToJSON(f"# Query: {query}\n# max_results: {max_results}\n\n{results_plain_text}")
+        return self.json_writer.convertToJSON(f"# Query: {query}\n# max_results: {max_results}\n\n{results_plain_text}\n- For the user metadata, summarize the key points.")
     
 class WebPage:
     def __init__(self, llm_provider_type, **llm_provider_kwargs):

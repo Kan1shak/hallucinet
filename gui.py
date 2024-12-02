@@ -35,7 +35,7 @@ def toolbar():
             cls='navigation-buttons-container'
         ),
         Div(
-            Input(type='text', placeholder='Search HalluciNet or type a HRL', cls='address-bar'),
+            Input(type='text', value='hallucinet.start',placeholder='Search HalluciNet or type a HRL', cls='address-bar'),
             cls='navigation-buttons address-bar-container'
         ),            
         Div(
