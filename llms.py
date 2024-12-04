@@ -97,6 +97,7 @@ class LLMWrapper:
         elif self.llm_provider_type == 'openai':
             completion = self.openai_client.chat.completions.create(
                 model=self.openai_model_name,
+                max_completion_tokens=8192,
                 messages=[
                     {
                         "role": "system",
@@ -129,6 +130,7 @@ class LLMWrapper:
         elif self.llm_provider_type == 'local':
             completion = self.local_client.chat.completions.create(
                 model=self.local_model_name,
+                max_tokens=4096,
                 messages=[
                     {
                         "role": "system",
@@ -154,6 +156,7 @@ class LLMWrapper:
         elif self.llm_provider_type == 'openai':
             completion = self.openai_client.chat.completions.create(
                 model=self.openai_model_name,
+                max_completion_tokens=8192,
                 messages=[
                     {
                         "role": "system",
@@ -199,6 +202,7 @@ class LLMWrapper:
             prompt = prompt + f"""\n\nJSON Schema to format your Response in\n{schema_to_json(schema)}\n"""
             completion = self.local_client.chat.completions.create(
                 model=self.local_model_name,
+                max_tokens=8192,
                 messages=[
                     {
                         "role": "system",

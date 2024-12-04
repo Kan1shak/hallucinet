@@ -4,7 +4,7 @@ from prompts import *
 
 class SearchEngine:
     def __init__(self, llm_provider_type, **llm_provider_kwargs):
-        self.creative_writer = CreativeWriter(alternative_creative_systen_prompt, llm_provider_type, **llm_provider_kwargs)
+        self.creative_writer = CreativeWriter(hallucinations_plus_plus_creative_system_prompt, llm_provider_type, **llm_provider_kwargs)
         self.json_writer = JSONWriter(search_json_system_prompt, SearchResults, llm_provider_type, **llm_provider_kwargs)
 
     def search(self, query, max_results=7):
