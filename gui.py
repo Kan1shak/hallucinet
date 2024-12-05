@@ -1,3 +1,10 @@
+# TODO: Add caching for search results
+# TODO: Make the toolabr buttons functional
+# TODO: Make the address bar on the toolbar functional
+# TODO: Add a settings page
+# TODO: Work on reflections page
+
+
 from fasthtml.common import *
 from web import SearchEngine
 
@@ -53,6 +60,13 @@ def toolbar():
     )
     return toolbar
 
+def search_bar(prefill:str=None):
+    return  Div(Input(type='text', placeholder='Search HalluciNet...', cls='search-bar', name='query',
+            value=prefill,
+            hx_get='/search', hx_target='.content-view', hx_trigger="keyup[key=='Enter']"),
+            cls='search-bar-container'
+    )
+
 def home_page():
     home_page = Div(
         Div(
@@ -60,11 +74,7 @@ def home_page():
             P('The Illusion of Reality', cls='subtitle'),
             cls='header'
         ),
-        Div(
-            Input(type='text', placeholder='Search HalluciNet...', cls='search-bar', name='query',
-                  hx_get='/search', hx_target='.content-view', hx_trigger="keyup[key=='Enter']"),
-            cls='search-bar-container'
-        ),
+        search_bar(),
         Div(
             # social links
             A('GitHub', href='https://www.github.com/Kan1shak', cls='social-link'),
@@ -108,25 +118,22 @@ class SearchResult:
         )
 
 def search_results(query,h_results):
-    search_results_top_bar = Div(
-        Input(type='text', value=query, cls='search-bar'),
-        Button(I(cls='nf nf-md-search'), cls='search-button'),
-        cls='search-bar-container'
-    )
+    search_results_top_bar = search_bar(query)
     search_results = Div(
-        *[SearchResult(*result) for result in h_results]
+        *[SearchResult(*result) for result in h_results],
+        cls='search-results-container'
     )
     return Div(search_results_top_bar, search_results, cls='search-results')
 
 @app.route('/search')
 def search(query:str):
-    results_j = searcher.search(query,max_results=7)
+    results_j = searcher.search(query,max_results=10)
     results = results_j['results']
     results = [(result['title'],result['url'],result['description']) for result in results]
 
     return (
         Link(rel='stylesheet', href='css/search.css'),
-        Title('HalluciNet Search Results'),
+        Title(f'{query} - Hallucinet'),
         search_results(query,results)
     )
 
