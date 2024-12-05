@@ -1,4 +1,11 @@
 from fasthtml.common import *
+from web import SearchEngine
+
+import dotenv
+
+dotenv.load_dotenv('.env')
+GEMINI_KEY = os.getenv('GEMINI_KEY')
+searcher = SearchEngine('gemini', api_key=GEMINI_KEY, model_name="gemini-1.5-flash")
 
 app, rt = fast_app(
     pico=False,static_path='static',
@@ -54,7 +61,8 @@ def home_page():
             cls='header'
         ),
         Div(
-            Input(type='text', placeholder='Search HalluciNet...', cls='search-bar'),
+            Input(type='text', placeholder='Search HalluciNet...', cls='search-bar', name='query',
+                  hx_get='/search', hx_target='.content-view', hx_trigger="keyup[key=='Enter']"),
             cls='search-bar-container'
         ),
         Div(
@@ -83,6 +91,43 @@ def index():
                 cls='content-view'
             ),
         )
+    )
+
+
+class SearchResult:
+    def __init__(self, title, url, description):
+        self.title = title
+        self.description = description
+        self.url = url
+    def __ft__(self):
+        return Div(
+            A(H2(self.title), href=self.url),
+            A(P(self.url), href=self.url),
+            P(self.description),
+            cls='search-result'
+        )
+
+def search_results(query,h_results):
+    search_results_top_bar = Div(
+        Input(type='text', value=query, cls='search-bar'),
+        Button(I(cls='nf nf-md-search'), cls='search-button'),
+        cls='search-bar-container'
+    )
+    search_results = Div(
+        *[SearchResult(*result) for result in h_results]
+    )
+    return Div(search_results_top_bar, search_results, cls='search-results')
+
+@app.route('/search')
+def search(query:str):
+    results_j = searcher.search(query,max_results=7)
+    results = results_j['results']
+    results = [(result['title'],result['url'],result['description']) for result in results]
+
+    return (
+        Link(rel='stylesheet', href='css/search.css'),
+        Title('HalluciNet Search Results'),
+        search_results(query,results)
     )
 
 serve()

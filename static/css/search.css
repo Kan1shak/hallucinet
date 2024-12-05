@@ -1,0 +1,27 @@
+.search-results .search-bar-cotainer {
+  justify-content: flex-start;
+}
+
+/* search result card */
+.search-results .search-result {
+    font-family: "JetBrains Mono", monospace;
+}
+
+
+.search-results .search-result a{
+    text-decoration: none;
+    color: #a69ae9;
+}
+
+.search-results .search-result a:first-of-type{
+    text-decoration: none;
+    color: #716d87;
+}
+
+.search-results .search-result a:hover{
+    color: #7e89be;
+}
+
+.search-results .search-result p {
+    color: #99a1ca;
+}
