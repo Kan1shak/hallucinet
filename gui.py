@@ -1,10 +1,10 @@
-# TODO: Add caching for search results
 # TODO: Make the toolabr buttons functional
 # TODO: Make the address bar on the toolbar functional
 # TODO: Add a settings page
 # TODO: Work on reflections page
 
-
+import json
+import redis
 from fasthtml.common import *
 from web import SearchEngine
 
@@ -12,7 +12,23 @@ import dotenv
 
 dotenv.load_dotenv('.env')
 GEMINI_KEY = os.getenv('GEMINI_KEY')
-searcher = SearchEngine('gemini', api_key=GEMINI_KEY, model_name="gemini-1.5-flash")
+#searcher = SearchEngine('gemini', api_key=GEMINI_KEY, model_name="gemini-1.5-flash")
+
+# a local version of the searcher
+LOCAL_LLM_KEY = os.getenv('LOCAL_LLM_KEY')
+searcher = SearchEngine('local', base_url='https://api.together.xyz/v1', 
+                        api_key=LOCAL_LLM_KEY,
+                        model_name='meta-llama/Llama-3.3-70B-Instruct-Turbo')
+
+r = redis.Redis()
+
+def get_or_set(domain:str, key:str, callback, **kwargs):
+    if r.exists(f"{domain}:{key}"):
+        return json.loads(r.get(f"{domain}:{key}"))
+    else:
+        value = callback(**kwargs)
+        r.set(f"{domain}:{key}",json.dumps(value))
+        return value
 
 app, rt = fast_app(
     pico=False,static_path='static',
@@ -91,6 +107,7 @@ def home_page():
 def index():
     return (
         Link(rel='stylesheet', href='css/homepage.css'),
+        Link(rel='stylesheet', href='css/search.css'),
         Link(rel='stylesheet', href='https://fonts.googleapis.com/css2?family=BhuTuka+Expanded+One&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap'),
         Main(
             toolbar(),
@@ -127,12 +144,12 @@ def search_results(query,h_results):
 
 @app.route('/search')
 def search(query:str):
-    results_j = searcher.search(query,max_results=10)
+    query = query.strip()
+    results_j = get_or_set(domain='query',key=query,callback=searcher.search,query=query,max_results=10)
     results = results_j['results']
     results = [(result['title'],result['url'],result['description']) for result in results]
 
     return (
-        Link(rel='stylesheet', href='css/search.css'),
         Title(f'{query} - Hallucinet'),
         search_results(query,results)
     )
