@@ -8,3 +8,11 @@
     height: 90dvh;
     overflow: auto;
 }
+
+.four-o-four {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
