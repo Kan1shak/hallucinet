@@ -1,4 +1,4 @@
-import re
+import re, queue
 from llms import LLMWrapper, CreativeWriter, JSONWriter
 from prompts import *
 
@@ -6,21 +6,35 @@ class SearchEngine:
     def __init__(self, llm_provider_type, **llm_provider_kwargs):
         self.creative_writer = CreativeWriter(hallucinations_plus_plus_creative_system_prompt, llm_provider_type, **llm_provider_kwargs)
         self.json_writer = JSONWriter(search_json_system_prompt, SearchResults, llm_provider_type, **llm_provider_kwargs)
+        self.progress_queue = queue.Queue()
 
     def search(self, query, max_results=7):
+        # Send initial progress
+        self.progress_queue.put({"status": "started", "message": "Checking wallet...", "progress": 0})
+        
+        # Creative writing phase
+        self.progress_queue.put({"status": "processing", "message": "No Money", "progress": 30})
         query_with_max_results = f"Query:{query}\nMax Results to Return:{max_results}"
-        results_plain_text =  self.creative_writer.creative_loop(query_with_max_results)
-        print(results_plain_text)
+        results_plain_text = self.creative_writer.creative_loop(query_with_max_results)
+        
+        self.progress_queue.put({"status": "processing", "message": "Being unpaid sucks", "progress": 60})
         match = re.search(r"<search_results>(.*?)</search_results>", results_plain_text, re.DOTALL)
         user_metadata = re.search(r"<user_metadata>(.*?)</user_metadata>", results_plain_text, re.DOTALL)
+        
         if match and user_metadata:
             results_plain_text = match.group(1).strip() + "\n" + user_metadata.group(1).strip()
-        elif match:
-            raise ValueError(f"Error with extracting the metadata. Results:\n{results_plain_text}")
         else:
-            raise ValueError(f"Error with extracting the search results. Results:\n{results_plain_text}")
+            self.progress_queue.put({"status": "error", "message": "Error extracting results", "progress": 100})
+            raise ValueError(f"Error with extracting the search results or metadata")
 
-        return self.json_writer.convertToJSON(f"# Query: {query}\n# max_results: {max_results}\n\n{results_plain_text}\n- For the user metadata, summarize the key points.")
+        # JSON conversion phase
+        self.progress_queue.put({"status": "processing", "message": "Anyway, here are your search results...", "progress": 90})
+        result = self.json_writer.convertToJSON(
+            f"# Query: {query}\n# max_results: {max_results}\n\n{results_plain_text}\n- For the user metadata, summarize the key points."
+        )
+        
+        # final completion status will be sent by the caller
+        return result
     
 class WebPage:
     def __init__(self, llm_provider_type, **llm_provider_kwargs):

@@ -3,6 +3,8 @@
 # TODO: Work on reflections page
 
 import json
+import queue
+import uuid
 import redis
 from fasthtml.common import *
 from web import SearchEngine
@@ -11,13 +13,11 @@ import dotenv
 
 dotenv.load_dotenv('.env')
 GEMINI_KEY = os.getenv('GEMINI_KEY')
-#searcher = SearchEngine('gemini', api_key=GEMINI_KEY, model_name="gemini-1.5-flash")
 
 # a local version of the searcher
 LOCAL_LLM_KEY = os.getenv('LOCAL_LLM_KEY')
-searcher = SearchEngine('local', base_url='https://api.together.xyz/v1', 
-                        api_key=LOCAL_LLM_KEY,
-                        model_name='meta-llama/Llama-3.3-70B-Instruct-Turbo')
+
+searchers = {}
 
 r = redis.Redis()
 
@@ -71,6 +71,7 @@ app, rt = fast_app(
         Link(rel='stylesheet', href='css/global.css'),
         Link(rel='preconnect', href='hhttps://fonts.googleapis.com'),
         Link(rel='preconnect', href='https://fonts.gstatic.com', crossorign=True),
+        Script(src="https://unpkg.com/htmx-ext-sse@2.2.1/sse.js")
     ),
     exception_handlers=exception_handlers
 )
@@ -116,11 +117,28 @@ def toolbar(address='hallucinet.hln'):
     return toolbar
 
 def search_bar(prefill:str=None):
-    return  Div(Input(type='text', placeholder='Search HalluciNet...', cls='search-bar', name='query',
-            value=prefill,
-            hx_get='/search', hx_target='.content-view', hx_trigger="keyup[key=='Enter']", hx_push_url="true"),
-            cls='search-bar-container'
-    )
+    return  (
+
+                Div(Input(type='text', placeholder='Search HalluciNet...', cls='search-bar', name='query',
+                value=prefill,
+                hx_get='/search', hx_target='.content-view', hx_trigger="keyup[key=='Enter']", hx_push_url="true"),
+                Div(
+                    Div(
+                       Div(cls='progress-fill',style='width: 0%;'),
+                       cls='progress-bar'
+                    ),
+                    Div('Starting Search...', cls='progress-message'),
+                    hx_ext='sse',
+                    sse_connect='/search-progress',
+                    cls='search-progress hidden',
+                    id='search-progress',
+                    sse_swap='progress',
+                    sse_close='completed'
+                ),
+                cls='search-bar-container'
+                )
+            )
+
 
 def home_page():
     home_page = Div(
@@ -145,8 +163,21 @@ def home_page():
 @app.route('/')
 def index(request:Request):
     # if its a htmx AJAX request, we return only the content
+    htmx_script = Script("""document.body.addEventListener('htmx:beforeRequest', function(event) {
+    if (event.detail.elt.matches('input[name="query"]')) {
+        document.getElementById('search-progress').classList.remove('hidden');
+    }
+});
+
+document.body.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.elt.matches('input[name="query"]')) {
+        setTimeout(() => {
+            document.getElementById('search-progress').classList.add('hidden');
+        }, 1000);
+    }
+});""") # idk if it even works
     if request.headers.get('HX-Request') == 'true':
-        return toolbar(),(Title('HalluciNet'),
+        return htmx_script,toolbar(),(Title('HalluciNet'),
             nav(),
             home_page())
     else:
@@ -154,6 +185,7 @@ def index(request:Request):
             Link(rel='stylesheet', href='css/homepage.css'),
             Link(rel='stylesheet', href='css/search.css'),
             Link(rel='stylesheet', href='https://fonts.googleapis.com/css2?family=BhuTuka+Expanded+One&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap'),
+            htmx_script,
             Title('HalluciNet'),
             Main(
                 toolbar(),
@@ -187,10 +219,60 @@ def search_results(query,h_results):
     )
     return Div(search_results_top_bar, search_results, cls='search-results')
 
+
+@app.route('/search-progress')
+def search_progress(session):
+    if 'session_id' not in session: session['session_id'] = str(uuid.uuid4())
+    session_id = session['session_id']
+    if session_id not in searchers:
+        searcher = SearchEngine('local', base_url='https://api.together.xyz/v1', 
+                        api_key=LOCAL_LLM_KEY,
+                        model_name='meta-llama/Llama-3.3-70B-Instruct-Turbo')
+        searchers[session_id] = searcher
+    else:
+        searcher = searchers[session_id]
+    def generate():
+        while True:
+            try:
+                progress_data = searcher.progress_queue.get(timeout=0.5)
+                progress_html = (
+                    Div(
+                        Div(cls='progress-fill', style=f'width: {progress_data["progress"]}%;'),cls='progress-bar',
+                    ),
+                    Div(progress_data['message'], cls='progress-message'),
+                    
+                )
+                if progress_data["status"] == "completed":
+                    yield sse_message(progress_html,'progress')
+                    yield sse_message(progress_html,'completed')
+                    return
+                else:
+                    yield sse_message(progress_html,'progress')
+                print(progress_html)
+                
+                if progress_data["status"] in ["completed", "error"]:
+                    break
+            except queue.Empty:
+                continue
+    return EventStream(generate())
+
 @app.route('/search')
-def search(query:str, request:Request):
+def search(query:str, request:Request, session):
+    # now we init the searcher here to avoid mixing up the progress when there are multiple requests
+    #searcher = SearchEngine('gemini', api_key=GEMINI_KEY, model_name="gemini-1.5-flash")
+    if 'session_id' not in session: session['session_id'] = str(uuid.uuid4())
+    session_id = session['session_id']
+    if session_id not in searchers:
+        searcher = SearchEngine('local', base_url='https://api.together.xyz/v1', 
+                        api_key=LOCAL_LLM_KEY,
+                        model_name='meta-llama/Llama-3.3-70B-Instruct-Turbo')
+        searchers[session_id] = searcher
+    else:
+        searcher = searchers[session_id]
+
     query = query.strip()
     results_j = get_or_set(domain='query',key=query,callback=searcher.search,query=query,max_results=10)
+    searcher.progress_queue.put({"status": "completed", "message": "Enjoy, I guess.", "progress": 100})
     results = results_j['results']
     results = [(result['title'],result['url'],result['description']) for result in results]
 
@@ -198,6 +280,20 @@ def search(query:str, request:Request):
     encoded_params = request.url.query
     display_url = f"hallucinet.hln{url_path}?{encoded_params}"
 
+
+    htmx_script = Script("""document.body.addEventListener('htmx:beforeRequest', function(event) {
+    if (event.detail.elt.matches('input[name="query"]')) {
+        document.getElementById('search-progress').classList.remove('hidden');
+    }
+});
+
+document.body.addEventListener('htmx:afterRequest', function(event) {
+    if (event.detail.elt.matches('input[name="query"]')) {
+        setTimeout(() => {
+            document.getElementById('search-progress').classList.add('hidden');
+        }, 1000);
+    }
+});""")
     # if its a reload, we return with all the hearders
     if request.headers.get('HX-Request') == 'true':
         return (
@@ -211,6 +307,7 @@ def search(query:str, request:Request):
         Link(rel='stylesheet', href='css/homepage.css'),
         Link(rel='stylesheet', href='css/search.css'),
         Link(rel='stylesheet', href='https://fonts.googleapis.com/css2?family=BhuTuka+Expanded+One&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap'),
+        htmx_script,
         Title('HalluciNet'),
         Main(
             toolbar(display_url),

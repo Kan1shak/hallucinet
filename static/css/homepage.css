@@ -71,6 +71,7 @@ nav {
     justify-content: center;
     align-items: center;
     margin: 10px;
+    flex-direction: column;
 }
 
 .search-bar {
@@ -115,4 +116,38 @@ nav {
 .social-links a:hover {
     background-color: #757dae;
     color: #3b3752;
+}
+
+.search-progress {
+    margin-top: 1rem;
+    width: 100%;
+    max-width: 600px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 1rem;
+}
+
+.search-progress.hidden {
+    display: none;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #3b3752;
+    border-radius: 2px;
+    overflow: hidden;
+    border: 1px solid #757dae;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #757dae;
+    transition: width 0.3s ease;
+}
+
+.progress-message {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #757dae;
 }

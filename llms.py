@@ -26,7 +26,6 @@ def schema_to_json(model):
             dummy_dict[field_name] = {}
         else:
             dummy_dict[field_name] = None
-    print(dummy_dict)
     return dummy_dict
 
 class LLMWrapper:
