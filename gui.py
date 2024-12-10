@@ -129,12 +129,27 @@ def search_bar(prefill:str=None):
                     ),
                     Div('Starting Search...', cls='progress-message'),
                     hx_ext='sse',
-                    sse_connect='/search-progress',
+                    #sse_connect='/search-progress',
                     cls='search-progress hidden',
                     id='search-progress',
                     sse_swap='progress',
                     sse_close='completed'
                 ),
+                Script(
+                    """
+
+document.querySelector('.search-bar').addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        document.getElementById('search-progress').setAttribute('sse-connect','/search-progress')
+        htmx.process(document.getElementById('search-progress'));
+    }
+});
+document.querySelector('.search-bar').addEventListener('keyup', function(event) {
+    if (event.key === 'Enter') {
+        document.getElementById('search-progress').removeAttribute('sse-connect')
+    }
+});
+        """),
                 cls='search-bar-container'
                 )
             )
@@ -171,9 +186,9 @@ def index(request:Request):
 
 document.body.addEventListener('htmx:afterRequest', function(event) {
     if (event.detail.elt.matches('input[name="query"]')) {
-        setTimeout(() => {
-            document.getElementById('search-progress').classList.add('hidden');
-        }, 1000);
+        document.getElementById('search-progress').classList.add('hidden');
+        // close the htmx sse connection
+        document.getElementById('search-progress').sse.close();
     }
 });""") # idk if it even works
     if request.headers.get('HX-Request') == 'true':
@@ -197,6 +212,7 @@ document.body.addEventListener('htmx:afterRequest', function(event) {
             )
         )
 
+shutdown_event = signal_shutdown()
 
 class SearchResult:
     def __init__(self, title, url, description):
@@ -225,6 +241,7 @@ def search_progress(session):
     if 'session_id' not in session: session['session_id'] = str(uuid.uuid4())
     session_id = session['session_id']
     if session_id not in searchers:
+
         searcher = SearchEngine('local', base_url='https://api.together.xyz/v1', 
                         api_key=LOCAL_LLM_KEY,
                         model_name='meta-llama/Llama-3.3-70B-Instruct-Turbo')
@@ -232,9 +249,9 @@ def search_progress(session):
     else:
         searcher = searchers[session_id]
     def generate():
-        while True:
+        while not shutdown_event.is_set():
             try:
-                progress_data = searcher.progress_queue.get(timeout=0.5)
+                progress_data = searcher.progress_queue.get()
                 progress_html = (
                     Div(
                         Div(cls='progress-fill', style=f'width: {progress_data["progress"]}%;'),cls='progress-bar',
@@ -245,7 +262,7 @@ def search_progress(session):
                 if progress_data["status"] == "completed":
                     yield sse_message(progress_html,'progress')
                     yield sse_message(progress_html,'completed')
-                    return
+                    break
                 else:
                     yield sse_message(progress_html,'progress')
                 print(progress_html)
